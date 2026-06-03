@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FWI Prediction System</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green-deep:   #0d1a04;
+      --green-mid:    #3b6d11;
+      --green-bright: #639922;
+      --green-light:  #97c459;
+      --green-pale:   #c0dd97;
+      --amber-deep:   #2d1204;
+      --amber-mid:    #ba7517;
+      --amber-bright: #ef9f27;
+      --amber-pale:   #fac775;
+      --wood-dark:    #993c1d;
+      --cream:        #faeeda;
+    }
+
+    html, body {
+      min-height: 100vh;
+      font-family: 'Exo 2', sans-serif;
+      background: #060e03;
+      overflow-x: hidden;
+    }
+
+    /* ── FOREST BG ── */
+    .forest-bg {
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        linear-gradient(180deg,
+          rgba(6,14,3,0.55) 0%,
+          rgba(13,26,4,0.4) 30%,
+          rgba(45,18,4,0.55) 70%,
+          rgba(6,14,3,0.85) 100%),
+        url('https://images.unsplash.com/photo-1448375240586-882707db888b?w=1800&q=80') center/cover no-repeat;
+      filter: saturate(0.7) brightness(0.55);
+    }
+    .forest-overlay {
+      position: fixed; inset: 0; z-index: 1;
+      background: linear-gradient(135deg,
+        rgba(13,26,4,0.45) 0%,
+        rgba(10,20,5,0.3) 40%,
+        rgba(45,18,4,0.45) 80%,
+        rgba(13,26,4,0.6) 100%);
+    }
+
+    /* ── ORBS ── */
+    .orbs { position:fixed;inset:0;z-index:2;pointer-events:none;overflow:hidden; }
+    .orb { position:absolute;border-radius:50%;filter:blur(80px); }
+    .orb1{width:500px;height:500px;background:radial-gradient(circle,#639922bb,transparent 70%);top:-130px;right:-100px;animation:floatOrb1 14s ease-in-out infinite;opacity:0.45;}
+    .orb2{width:420px;height:420px;background:radial-gradient(circle,#ba7517bb,transparent 70%);bottom:-100px;left:-80px;animation:floatOrb2 16s ease-in-out infinite 2s;opacity:0.5;}
+    .orb3{width:320px;height:320px;background:radial-gradient(circle,#3b6d11aa,transparent 70%);top:45%;left:20%;animation:floatOrb3 11s ease-in-out infinite 1s;opacity:0.35;}
+    .orb4{width:260px;height:260px;background:radial-gradient(circle,#ef9f27aa,transparent 70%);top:10%;right:12%;animation:floatOrb4 17s ease-in-out infinite 3.5s;opacity:0.3;}
+    .orb5{width:350px;height:350px;background:radial-gradient(circle,#27500acc,transparent 70%);bottom:5%;right:-60px;animation:floatOrb1 13s ease-in-out infinite 5s;opacity:0.4;}
+
+    /* ── PARTICLES ── */
+    .particles{position:fixed;inset:0;z-index:3;pointer-events:none;overflow:hidden;}
+    .p{position:absolute;bottom:-10px;border-radius:50%;animation:particleRise linear infinite;}
+
+    /* ── CANVAS ── */
+    #bg-canvas{position:fixed;inset:0;z-index:2;pointer-events:none;}
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 16px 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(180deg,rgba(6,14,3,0.85),transparent);
+      backdrop-filter: blur(4px);
+      border-bottom: 0.5px solid rgba(97,153,34,0.15);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px; font-weight: 600; letter-spacing: 1px;
+      color: var(--amber-pale); text-decoration: none;
+    }
+    .nav-logo-icon {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: linear-gradient(135deg,rgba(97,153,34,0.3),rgba(186,117,23,0.3));
+      border: 0.5px solid rgba(97,153,34,0.5);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .nav-links {
+      display: flex; align-items: center; gap: 6px; list-style: none;
+    }
+    .nav-links a {
+      padding: 7px 16px; border-radius: 8px;
+      font-size: 13px; font-weight: 500; letter-spacing: 0.4px;
+      color: rgba(192,221,151,0.7); text-decoration: none;
+      transition: all 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .nav-links a:hover { color: var(--amber-pale); background: rgba(97,153,34,0.1); }
+    .nav-links a.active {
+      color: var(--amber-pale);
+      background: rgba(97,153,34,0.12);
+      border: 0.5px solid rgba(97,153,34,0.3);
+    }
+    .nav-cta {
+      padding: 8px 20px !important;
+      background: linear-gradient(135deg,#3b6d11,#ba7517) !important;
+      border: none !important; color: var(--cream) !important;
+      font-weight: 600 !important;
+      box-shadow: 0 0 20px rgba(97,153,34,0.2);
+    }
+    .nav-cta:hover { opacity: 0.85; transform: translateY(-1px); }
+
+    /* ── PAGE ── */
+    .page {
+      position: relative; z-index: 10;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center;
+      padding: 100px 24px 60px;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      text-align: center;
+      max-width: 680px;
+      margin-bottom: 56px;
+      animation: fadeUp 0.8s ease both;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: rgba(97,153,34,0.12);
+      border: 0.5px solid rgba(97,153,34,0.4);
+      border-radius: 999px; padding: 6px 16px;
+      font-size: 11px; font-weight: 500; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--green-pale);
+      margin-bottom: 24px;
+    }
+    .hero-badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green-bright);
+      box-shadow: 0 0 8px var(--green-bright);
+      animation: blink 2s ease-in-out infinite;
+    }
+    h1.hero-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: clamp(36px, 6vw, 60px);
+      font-weight: 700; line-height: 1.1;
+      letter-spacing: 1.5px;
+      background: linear-gradient(90deg,#c0dd97,#fac775,#97c459,#ef9f27,#c0dd97);
+      background-size: 250% auto;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 4s linear infinite;
+      margin-bottom: 8px;
+    }
+    .hero-title span {
+      display: block; font-size: 0.52em; letter-spacing: 3px;
+      color: rgba(192,221,151,0.5);
+      -webkit-text-fill-color: rgba(192,221,151,0.5);
+      background: none; font-weight: 400;
+      margin-bottom: 6px;
+    }
+    .hero-desc {
+      font-size: 15px; font-weight: 300; line-height: 1.75;
+      color: rgba(192,221,151,0.6);
+      max-width: 540px; margin: 18px auto 32px;
+    }
+
+    .hero-btns {
+      display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 14px 32px; border: none; border-radius: 10px; cursor: pointer;
+      background: linear-gradient(135deg,#3b6d11 0%,#639922 35%,#ba7517 65%,#993c1d 100%);
+      background-size: 200% 200%; animation: gradShift 4s ease infinite;
+      color: var(--cream); font-family: 'Rajdhani', sans-serif;
+      font-size: 16px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+      text-decoration: none;
+      box-shadow: 0 6px 28px rgba(97,153,34,0.28), 0 6px 28px rgba(186,117,23,0.2);
+      position: relative; overflow: hidden;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .btn-primary::before {
+      content:''; position:absolute; inset:0;
+      background: linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent);
+      background-size: 200%; animation: shimmer 2s linear infinite;
+    }
+    .btn-primary:hover { opacity: 0.88; transform: translateY(-2px); }
+    .btn-primary:active { transform: scale(0.98); }
+
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 13px 28px; border-radius: 10px; cursor: pointer;
+      background: rgba(97,153,34,0.1);
+      border: 0.5px solid rgba(97,153,34,0.35);
+      color: var(--green-pale); font-family: 'Rajdhani', sans-serif;
+      font-size: 15px; font-weight: 500; letter-spacing: 1px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { background: rgba(97,153,34,0.18); transform: translateY(-1px); }
+
+    /* ── STATS ROW ── */
+    .stats {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      justify-content: center; margin-bottom: 52px;
+      animation: fadeUp 0.8s ease both 0.15s;
+    }
+    .stat-card {
+      background: rgba(10,22,4,0.6);
+      border: 0.5px solid rgba(97,153,34,0.25);
+      border-radius: 14px; padding: 18px 22px;
+      text-align: center; min-width: 130px;
+      backdrop-filter: blur(14px);
+      position: relative; overflow: hidden;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-3px); border-color: rgba(186,117,23,0.45); }
+    .stat-card::before {
+      content:''; position:absolute; inset:0;
+      background: linear-gradient(135deg,rgba(97,153,34,0.05),rgba(186,117,23,0.05));
+    }
+    .stat-num {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 28px; font-weight: 700; color: var(--amber-pale);
+      line-height: 1;
+    }
+    .stat-lbl {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.9px;
+      text-transform: uppercase; color: rgba(192,221,151,0.5);
+      margin-top: 5px;
+    }
+    .stat-icon { font-size: 20px; color: rgba(97,153,34,0.7); margin-bottom: 6px; }
+
+    /* ── FEATURE CARDS ── */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px; width: 100%; max-width: 900px; margin-bottom: 52px;
+      animation: fadeUp 0.8s ease both 0.25s;
+    }
+    .feat {
+      background: rgba(10,22,4,0.65);
+      border: 0.5px solid rgba(97,153,34,0.22);
+      border-radius: 16px; padding: 22px 20px;
+      backdrop-filter: blur(16px);
+      position: relative; overflow: hidden;
+      transition: transform 0.2s, border-color 0.25s, box-shadow 0.25s;
+    }
+    .feat:hover {
+      transform: translateY(-4px);
+      border-color: rgba(186,117,23,0.4);
+      box-shadow: 0 8px 32px rgba(186,117,23,0.1);
+    }
+    .feat::after {
+      content:''; position:absolute; top:0; left:0; right:0; height:1px;
+      background: linear-gradient(90deg,transparent,rgba(97,153,34,0.4),rgba(186,117,23,0.4),transparent);
+    }
+    .feat-icon {
+      width: 42px; height: 42px; border-radius: 10px;
+      background: linear-gradient(135deg,rgba(97,153,34,0.2),rgba(186,117,23,0.15));
+      border: 0.5px solid rgba(97,153,34,0.35);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 14px; font-size: 20px; color: var(--amber-pale);
+    }
+    .feat h3 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 16px; font-weight: 600; letter-spacing: 0.5px;
+      color: var(--amber-pale); margin-bottom: 7px;
+    }
+    .feat p {
+      font-size: 12.5px; font-weight: 300; line-height: 1.65;
+      color: rgba(192,221,151,0.5);
+    }
+
+    /* ── INDEX CARD (main glassmorphism) ── */
+    .main-card {
+      width: 100%; max-width: 700px;
+      background: linear-gradient(160deg,rgba(10,22,4,0.72) 0%,rgba(25,10,2,0.68) 100%);
+      border: 0.5px solid rgba(97,153,34,0.32);
+      border-radius: 20px;
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      overflow: hidden; position: relative;
+      box-shadow: 0 0 70px rgba(97,153,34,0.1), 0 0 120px rgba(186,117,23,0.07),
+                  inset 0 1px 0 rgba(192,221,151,0.08);
+      animation: fadeUp 0.8s ease both 0.35s;
+      margin-bottom: 52px;
+    }
+    .main-card::before, .main-card::after,
+    .mc-br::before,     .mc-br::after {
+      content:''; position:absolute; width:18px; height:18px;
+      border-color: rgba(97,153,34,0.55); border-style:solid; z-index:5; pointer-events:none;
+    }
+    .main-card::before { top:10px;left:10px;   border-width:2px 0 0 2px; border-radius:4px 0 0 0; }
+    .main-card::after  { top:10px;right:10px;  border-width:2px 2px 0 0; border-radius:0 4px 0 0; }
+    .mc-br::before { bottom:10px;left:10px;  border-width:0 0 2px 2px; border-radius:0 0 0 4px; }
+    .mc-br::after  { bottom:10px;right:10px; border-width:0 2px 2px 0; border-radius:0 0 4px 0; }
+    .mc-scan {
+      position:absolute;left:0;right:0;height:1.5px;z-index:6;
+      background:linear-gradient(90deg,transparent,rgba(97,153,34,0.5),rgba(186,117,23,0.5),transparent);
+      animation:scanLine 5s linear infinite; pointer-events:none;
+    }
+    .mc-body { padding: 32px 32px 32px; }
+    .mc-header {
+      display: flex; align-items: center; gap: 16px; margin-bottom: 24px;
+    }
+    .mc-icon {
+      width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
+      background: linear-gradient(135deg,rgba(97,153,34,0.25),rgba(186,117,23,0.25));
+      border: 0.5px solid rgba(97,153,34,0.5);
+      display: flex; align-items: center; justify-content: center;
+      animation: pulseRing 2.6s ease-out infinite;
+    }
+    .mc-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 20px; font-weight: 600; letter-spacing: 0.5px; color: var(--amber-pale);
+    }
+    .mc-sub { font-size: 12px; color: rgba(192,221,151,0.45); margin-top: 2px; letter-spacing: 0.3px; }
+    .mc-divider {
+      height: 0.5px;
+      background: linear-gradient(90deg,transparent,rgba(97,153,34,0.4),rgba(186,117,23,0.4),transparent);
+      margin-bottom: 22px;
+    }
+    .mc-params {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 24px;
+    }
+    .mc-param {
+      background: rgba(97,153,34,0.07);
+      border: 0.5px solid rgba(97,153,34,0.18);
+      border-radius: 8px; padding: 10px 12px;
+      transition: border-color 0.2s;
+    }
+    .mc-param:hover { border-color: rgba(186,117,23,0.4); }
+    .mc-param-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(192,221,151,0.45); margin-bottom: 3px; }
+    .mc-param-val { font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 600; color: var(--amber-pale); }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative; z-index: 10;
+      text-align: center; padding: 24px;
+      border-top: 0.5px solid rgba(97,153,34,0.12);
+      font-size: 11px; letter-spacing: 0.5px;
+      color: rgba(192,221,151,0.3);
+    }
+    footer span { color: rgba(186,117,23,0.6); }
+
+    /* ── KEYFRAMES ── */
+    @keyframes gradShift {
+      0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%}
+    }
+    @keyframes floatOrb1 {
+      0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(45px,-60px) scale(1.12)} 66%{transform:translate(-30px,35px) scale(0.91)}
+    }
+    @keyframes floatOrb2 {
+      0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(-55px,45px) scale(1.09)} 66%{transform:translate(38px,-40px) scale(1.16)}
+    }
+    @keyframes floatOrb3 {
+      0%,100%{transform:translate(0,0) scale(1)} 40%{transform:translate(32px,55px) scale(0.87)} 70%{transform:translate(-22px,-45px) scale(1.1)}
+    }
+    @keyframes floatOrb4 {
+      0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-48px,-32px) scale(1.19)}
+    }
+    @keyframes particleRise {
+      0%  {transform:translateY(0) translateX(0) scale(1);opacity:0.8}
+      100%{transform:translateY(-110vh) translateX(var(--dx)) scale(0.15);opacity:0}
+    }
+    @keyframes pulseRing {
+      0%  {box-shadow:0 0 0 0 rgba(97,153,34,0.55),0 0 0 0 rgba(186,117,23,0.4)}
+      60% {box-shadow:0 0 0 14px rgba(97,153,34,0),0 0 0 26px rgba(186,117,23,0)}
+      100%{box-shadow:0 0 0 0 rgba(97,153,34,0),0 0 0 0 rgba(186,117,23,0)}
+    }
+    @keyframes fadeUp {
+      from{opacity:0;transform:translateY(26px)} to{opacity:1;transform:translateY(0)}
+    }
+    @keyframes scanLine {
+      0%{top:0%} 100%{top:100%}
+    }
+    @keyframes shimmer {
+      0%{background-position:-200% center} 100%{background-position:200% center}
+    }
+    @keyframes blink {
+      0%,100%{opacity:1} 50%{opacity:0.3}
+    }
+
+    @media(max-width:600px){
+      nav { padding: 14px 18px; }
+      .nav-links { display: none; }
+      .hero-btns { flex-direction: column; }
+      .mc-params { grid-template-columns: repeat(2,1fr); }
+      .mc-body { padding: 22px 18px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="forest-bg"></div>
+  <div class="forest-overlay"></div>
+  <canvas id="bg-canvas"></canvas>
+
+  <div class="orbs">
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+    <div class="orb orb4"></div>
+    <div class="orb orb5"></div>
+  </div>
+
+  <div class="particles" id="ptcl"></div>
+
+  <!-- ── NAV ── -->
+  <nav>
+    <a class="nav-logo" href="index.html">
+      <div class="nav-logo-icon">
+        <i class="ti ti-flame" style="font-size:18px;color:#fac775;"></i>
+      </div>
+      FWI System
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html" class="active"><i class="ti ti-home" style="font-size:14px;"></i> Home</a></li>
+      <li><a href="{{ url_for('predict_datapoint') }}"><i class="ti ti-chart-bar" style="font-size:14px;"></i> Predict</a></li>
+      <li><a href="{{ url_for('predict_datapoint') }}" class="nav-cta"><i class="ti ti-flame" style="font-size:14px;"></i> Predict FWI</a></li>
+    </ul>
+  </nav>
+
+  <!-- ── PAGE ── -->
+  <main class="page">
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        ML-Powered Forest Fire Analysis
+      </div>
+      <h1 class="hero-title">
+        <span>Forest Fire</span>
+        Weather Index<br/>Prediction System
+      </h1>
+      <p class="hero-desc">
+        Advanced machine learning model that analyses atmospheric and environmental
+        parameters to predict the Fire Weather Index — helping forecast and prevent
+        devastating forest fires before they ignite.
+      </p>
+      <div class="hero-btns">
+        <a href="{{ url_for('predict_datapoint') }}" class="btn-primary">
+          <i class="ti ti-flame"></i>
+          Predict FWI Now
+          <i class="ti ti-arrow-right"></i>
+        </a>
+        <a href="#about" class="btn-secondary">
+          <i class="ti ti-info-circle"></i>
+          Learn More
+        </a>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-icon"><i class="ti ti-variable"></i></div>
+        <div class="stat-num">9</div>
+        <div class="stat-lbl">Input Parameters</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="ti ti-brain"></i></div>
+        <div class="stat-num">ML</div>
+        <div class="stat-lbl">Powered Model</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="ti ti-map-pin"></i></div>
+        <div class="stat-num">2</div>
+        <div class="stat-lbl">Regions Covered</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="ti ti-bolt"></i></div>
+        <div class="stat-num">RT</div>
+        <div class="stat-lbl">Real-time Prediction</div>
+      </div>
+    </div>
+
+    <!-- FEATURE CARDS -->
+    <div class="features" id="about">
+      <div class="feat">
+        <div class="feat-icon"><i class="ti ti-temperature"></i></div>
+        <h3>Weather Parameters</h3>
+        <p>Analyses Temperature, Relative Humidity, Wind Speed, and Rainfall to model real-world atmospheric conditions affecting fire behaviour.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><i class="ti ti-leaf"></i></div>
+        <h3>Fuel Moisture Codes</h3>
+        <p>Uses FFMC and DMC indices to assess the moisture content of forest fuels — key indicators of how easily fires can start and spread.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><i class="ti ti-bolt"></i></div>
+        <h3>Spread Index</h3>
+        <p>Evaluates the Initial Spread Index (ISI) combined with fire class classification to estimate the rate of fire spread across terrain.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><i class="ti ti-map"></i></div>
+        <h3>Regional Analysis</h3>
+        <p>Region-specific predictions accounting for local terrain, vegetation density, and historical fire patterns for more accurate results.</p>
+      </div>
+    </div>
+
+    <!-- MAIN GLASSMORPHISM CARD -->
+    <div class="main-card mc-br">
+      <div class="mc-scan"></div>
+      <div class="mc-body">
+        <div class="mc-header">
+          <div class="mc-icon">
+            <i class="ti ti-flame" style="font-size:26px;color:#fac775;"></i>
+          </div>
+          <div>
+            <div class="mc-title">How the Prediction Works</div>
+            <div class="mc-sub">9 environmental inputs → ML Model → FWI Score</div>
+          </div>
+        </div>
+        <div class="mc-divider"></div>
+        <div class="mc-params">
+          <div class="mc-param">
+            <div class="mc-param-lbl"><i class="ti ti-temperature" style="font-size:10px;"></i> Temperature</div>
+            <div class="mc-param-val">Ambient °C</div>
+          </div>
+          <div class="mc-param">
+            <div class="mc-param-lbl"><i class="ti ti-droplet" style="font-size:10px;"></i> RH</div>
+            <div class="mc-param-val">Humidity %</div>
+          </div>
+          <div class="mc-param">
+            <div class="mc-param-lbl"><i class="ti ti-wind" style="font-size:10px;"></i> Ws</div>
+            <div class="mc-param-val">Wind km/h</div>
+          </div>
+          <div class="mc-param">
+            <div class="mc-param-lbl"><i class="ti ti-cloud-rain" style="font-size:10px;"></i> Rain</div>
+            <div class="mc-param-val">Precip. mm</div>
+          </div>
+          <div class="mc-param">
+            <div class="mc-param-lbl"><i class="ti ti-leaf" style="font-size:10px;"></i> FFMC</div>
+            <div class="mc-param-val">Fuel Moisture</div>
+          </div>
+          <div class="mc-param">
+            <div class="mc-param-lbl"><i class="ti ti-trees" style="font-size:10px;"></i> DMC</div>
+            <div class="mc-param-val">Duff Moisture</div>
+          </div>
+          <div class="mc-param">
+            <div class="mc-param-lbl"><i class="ti ti-bolt" style="font-size:10px;"></i> ISI</div>
+            <div class="mc-param-val">Spread Index</div>
+          </div>
+          <div class="mc-param">
+            <div class="mc-param-lbl"><i class="ti ti-tag" style="font-size:10px;"></i> Classes</div>
+            <div class="mc-param-val">Fire Class</div>
+          </div>
+          <div class="mc-param">
+            <div class="mc-param-lbl"><i class="ti ti-map-pin" style="font-size:10px;"></i> Region</div>
+            <div class="mc-param-val">Geographic</div>
+          </div>
+        </div>
+        <a href="{{ url_for('predict_datapoint') }}" class="btn-primary" style="width:100%;justify-content:center;">
+          <i class="ti ti-flame"></i>
+          Start FWI Prediction
+          <i class="ti ti-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    Forest Fire Weather Index Prediction System &nbsp;·&nbsp;
+    Powered by <span>Machine Learning</span> &nbsp;·&nbsp;
+    Built with <span>&#9829;</span> for Fire Safety
+  </footer>
+
+  <script>
+    /* ── Particles ── */
+    const ptcl = document.getElementById('ptcl');
+    const cols = ['#639922','#ba7517','#3b6d11','#ef9f27','#97c459','#993c1d','#fac775','#c0dd97'];
+    for(let i = 0; i < 55; i++){
+      const el = document.createElement('div');
+      el.className = 'p';
+      const sz  = 2 + Math.random() * 6;
+      const dx  = (Math.random() - 0.5) * 150;
+      const dur = 6 + Math.random() * 11;
+      const del = Math.random() * 14;
+      const col = cols[Math.floor(Math.random() * cols.length)];
+      el.style.cssText = `
+        left:${Math.random()*100}%;
+        width:${sz}px; height:${sz}px;
+        background:${col};
+        --dx:${dx}px;
+        animation-duration:${dur}s;
+        animation-delay:-${del}s;
+        filter:blur(${Math.random()<0.4?1.5:0}px);
+        opacity:${0.45 + Math.random()*0.55};
+        box-shadow: 0 0 ${sz*2}px ${col}88;
+      `;
+      ptcl.appendChild(el);
+    }
+
+    /* ── Canvas drifting rings ── */
+    const canvas = document.getElementById('bg-canvas');
+    const ctx    = canvas.getContext('2d');
+    function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const rings = Array.from({length:12}, (_,i) => ({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      r: 70 + Math.random() * 180,
+      vx:(Math.random()-0.5)*0.35,
+      vy:(Math.random()-0.5)*0.35,
+      hue: i%2===0?'green':'amber',
+      alpha: 0.03 + Math.random()*0.055,
+      thickness: 0.8 + Math.random()*2.2
+    }));
+    const gc=['#639922','#3b6d11','#97c459'], ac=['#ba7517','#ef9f27','#993c1d'];
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      rings.forEach(r=>{
+        r.x+=r.vx; r.y+=r.vy;
+        if(r.x<-r.r)r.x=canvas.width+r.r;
+        if(r.x>canvas.width+r.r)r.x=-r.r;
+        if(r.y<-r.r)r.y=canvas.height+r.r;
+        if(r.y>canvas.height+r.r)r.y=-r.r;
+        const pal=r.hue==='green'?gc:ac;
+        ctx.beginPath();
+        ctx.arc(r.x,r.y,r.r,0,Math.PI*2);
+        ctx.strokeStyle=pal[Math.floor(Math.random()*pal.length)];
+        ctx.globalAlpha=r.alpha;
+        ctx.lineWidth=r.thickness;
+        ctx.stroke();
+        ctx.globalAlpha=1;
+      });
+      requestAnimationFrame(draw);
+    }
+    draw();
+  </script>
+</body>
+</html>

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FWI Prediction</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600&family=Exo+2:wght@300;400;500&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green-deep:   #0d1a04;
+      --green-mid:    #3b6d11;
+      --green-bright: #639922;
+      --green-light:  #97c459;
+      --green-pale:   #c0dd97;
+      --amber-deep:   #2d1204;
+      --amber-mid:    #ba7517;
+      --amber-bright: #ef9f27;
+      --amber-pale:   #fac775;
+      --wood-dark:    #993c1d;
+      --cream:        #faeeda;
+    }
+
+    /* ── PAGE ── */
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Exo 2', sans-serif;
+      background: #060e03;
+      overflow-x: hidden;
+      padding-top: 72px; /* FIX 1: push content below fixed nav */
+    }
+
+    /* ── ANIMATED CANVAS BACKGROUND ── */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── FLOATING ORBS ── */
+    .orbs {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+    }
+    .orb1 { width:420px;height:420px;background:radial-gradient(circle,#639922cc,transparent 70%);top:-120px;right:-80px;animation:floatOrb1 14s ease-in-out infinite;opacity:0.5; }
+    .orb2 { width:360px;height:360px;background:radial-gradient(circle,#ba7517cc,transparent 70%);bottom:-80px;left:-70px;animation:floatOrb2 16s ease-in-out infinite 2s;opacity:0.55; }
+    .orb3 { width:280px;height:280px;background:radial-gradient(circle,#3b6d11bb,transparent 70%);top:40%;left:25%;animation:floatOrb3 11s ease-in-out infinite 1s;opacity:0.4; }
+    .orb4 { width:240px;height:240px;background:radial-gradient(circle,#ef9f27aa,transparent 70%);top:15%;right:8%;animation:floatOrb4 17s ease-in-out infinite 3.5s;opacity:0.35; }
+    .orb5 { width:300px;height:300px;background:radial-gradient(circle,#27500acc,transparent 70%);bottom:8%;right:-50px;animation:floatOrb1 13s ease-in-out infinite 5s;opacity:0.45; }
+    .orb6 { width:200px;height:200px;background:radial-gradient(circle,#993c1daa,transparent 70%);top:55%;right:30%;animation:floatOrb2 18s ease-in-out infinite 0.5s;opacity:0.3; }
+
+    /* ── PARTICLES ── */
+    .particles { position:fixed;inset:0;z-index:2;pointer-events:none;overflow:hidden; }
+    .p {
+      position:absolute;
+      bottom:-8px;
+      border-radius:50%;
+      animation: particleRise linear infinite;
+    }
+
+    /* ── PAGE WRAPPER ── */
+    .page {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 560px;
+      margin: 40px 16px;
+      padding: 0;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: linear-gradient(160deg,rgba(10,22,4,0.75) 0%,rgba(25,10,2,0.7) 100%);
+      border: 0.5px solid rgba(97,153,34,0.35);
+      border-radius: 20px;
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      overflow: hidden;
+      position: relative;
+      box-shadow:
+        0 0 60px rgba(97,153,34,0.1),
+        0 0 120px rgba(186,117,23,0.08),
+        inset 0 1px 0 rgba(192,221,151,0.1);
+      animation: fadeUp 0.7s ease both;
+    }
+
+    /* Corner brackets */
+    .card::before, .card::after,
+    .card-br::before, .card-br::after {
+      content:''; position:absolute; width:20px; height:20px;
+      border-color: rgba(97,153,34,0.6); border-style: solid;
+      z-index: 5; pointer-events: none;
+    }
+    .card::before  { top:10px;left:10px;   border-width:2px 0 0 2px; border-radius:4px 0 0 0; }
+    .card::after   { top:10px;right:10px;  border-width:2px 2px 0 0; border-radius:0 4px 0 0; }
+    .card-br::before { bottom:10px;left:10px;  border-width:0 0 2px 2px; border-radius:0 0 0 4px; }
+    .card-br::after  { bottom:10px;right:10px; border-width:0 2px 2px 0; border-radius:0 0 4px 0; }
+
+    /* scan line */
+    .scanline {
+      position:absolute; left:0; right:0; height:1.5px; z-index:6;
+      background: linear-gradient(90deg,transparent,rgba(97,153,34,0.5),rgba(186,117,23,0.5),transparent);
+      animation: scanLine 5s linear infinite;
+      pointer-events:none;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      padding: 32px 28px 0;
+      text-align: center;
+      position: relative;
+    }
+
+    .icon-ring {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: linear-gradient(135deg,rgba(97,153,34,0.2),rgba(186,117,23,0.2));
+      border: 1px solid rgba(97,153,34,0.55);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+      animation: pulseRing 2.6s ease-out infinite;
+      position: relative;
+    }
+    .icon-ring::after {
+      content:''; position:absolute; inset:-5px; border-radius:50%;
+      border: 0.5px solid rgba(186,117,23,0.25);
+    }
+
+    h1 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 28px; font-weight: 600;
+      letter-spacing: 1px;
+      background: linear-gradient(90deg,#c0dd97,#fac775,#97c459,#ef9f27,#c0dd97);
+      background-size: 250% auto;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 4s linear infinite;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 10px; font-weight: 400; letter-spacing: 2px;
+      text-transform: uppercase; color: rgba(192,221,151,0.4);
+      margin-bottom: 26px;
+    }
+
+    .header-divider {
+      height: 0.5px;
+      background: linear-gradient(90deg,transparent,rgba(97,153,34,0.45),rgba(186,117,23,0.45),transparent);
+      margin: 0 0 24px;
+    }
+
+    /* ── BODY ── */
+    .body { padding: 0 28px 28px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .field {
+      display: flex; flex-direction: column; gap: 5px;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .field label {
+      font-size: 10px; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.9px;
+      color: rgba(192,221,151,0.6);
+      display: flex; align-items: center; gap: 4px;
+    }
+    .field label i { font-size: 12px; }
+
+    .field input {
+      background: rgba(97,153,34,0.07);
+      border: 0.5px solid rgba(97,153,34,0.22);
+      border-radius: 8px;
+      color: var(--cream);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13.5px;
+      padding: 10px 12px;
+      outline: none;
+      transition: all 0.25s;
+      caret-color: var(--amber-pale);
+      width: 100%;
+    }
+    .field input::placeholder { color: rgba(250,199,117,0.22); }
+    .field input:focus {
+      border-color: rgba(186,117,23,0.7);
+      background: rgba(186,117,23,0.1);
+      box-shadow: 0 0 0 3px rgba(186,117,23,0.15), 0 0 14px rgba(97,153,34,0.1);
+    }
+
+    .sep {
+      height: 0.5px;
+      background: linear-gradient(90deg,transparent,rgba(97,153,34,0.35),rgba(186,117,23,0.35),transparent);
+      margin: 16px 0;
+    }
+
+    /* ── BUTTON ── */
+    .btn {
+      width: 100%; padding: 14px; border: none; border-radius: 10px; cursor: pointer;
+      background: linear-gradient(135deg,#3b6d11 0%,#639922 35%,#ba7517 65%,#993c1d 100%);
+      background-size: 200% 200%;
+      animation: gradShift 4s ease infinite;
+      color: var(--cream);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 16px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: opacity 0.2s, transform 0.15s;
+      box-shadow: 0 4px 24px rgba(97,153,34,0.25), 0 4px 24px rgba(186,117,23,0.18);
+      position: relative; overflow: hidden;
+    }
+    .btn::before {
+      content:''; position:absolute; inset:0;
+      background: linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent);
+      background-size: 200% 100%;
+      animation: shimmer 2.2s linear infinite;
+    }
+    .btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn:active { transform: scale(0.98) translateY(0); }
+
+    /* ── RESULT ── */
+    .result {
+      margin-top: 18px;
+      background: linear-gradient(135deg,rgba(27,50,10,0.6),rgba(45,18,4,0.6));
+      border: 0.5px solid rgba(97,153,34,0.35);
+      border-radius: 10px; padding: 15px 16px;
+      display: flex; align-items: center; gap: 12px;
+      position: relative; overflow: hidden;
+    }
+    .result::before {
+      content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+      background: linear-gradient(180deg,#639922,#ba7517);
+      border-radius: 3px 0 0 3px;
+    }
+    .result-lbl {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.9px;
+      color: rgba(192,221,151,0.5); margin-bottom: 3px;
+    }
+    .result-val {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px; font-weight: 600; color: var(--amber-pale);
+    }
+    .badge {
+      margin-left: auto; flex-shrink: 0;
+      display: flex; align-items: center; gap: 4px;
+      background: rgba(57,109,17,0.25);
+      border: 0.5px solid rgba(97,153,34,0.45);
+      border-radius: 999px; padding: 4px 10px;
+      font-size: 10px; font-weight: 500; letter-spacing: 0.5px;
+      color: #c0dd97; text-transform: uppercase;
+    }
+
+    /* ── KEYFRAMES ── */
+    @keyframes gradShift {
+      0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%}
+    }
+    @keyframes floatOrb1 {
+      0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(45px,-60px) scale(1.12)} 66%{transform:translate(-30px,35px) scale(0.91)}
+    }
+    @keyframes floatOrb2 {
+      0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(-55px,45px) scale(1.09)} 66%{transform:translate(38px,-40px) scale(1.16)}
+    }
+    @keyframes floatOrb3 {
+      0%,100%{transform:translate(0,0) scale(1)} 40%{transform:translate(32px,55px) scale(0.87)} 70%{transform:translate(-22px,-45px) scale(1.1)}
+    }
+    @keyframes floatOrb4 {
+      0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-48px,-32px) scale(1.19)}
+    }
+    @keyframes particleRise {
+      0%  {transform:translateY(0) translateX(0) scale(1);opacity:0.8}
+      100%{transform:translateY(-110vh) translateX(var(--dx)) scale(0.15);opacity:0}
+    }
+    @keyframes pulseRing {
+      0%  {box-shadow:0 0 0 0 rgba(97,153,34,0.55),0 0 0 0 rgba(186,117,23,0.4)}
+      60% {box-shadow:0 0 0 14px rgba(97,153,34,0),0 0 0 26px rgba(186,117,23,0)}
+      100%{box-shadow:0 0 0 0 rgba(97,153,34,0),0 0 0 0 rgba(186,117,23,0)}
+    }
+    @keyframes fadeUp {
+      from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)}
+    }
+    @keyframes scanLine {
+      0%{top:0%} 100%{top:100%}
+    }
+    @keyframes shimmer {
+      0%{background-position:-200% center} 100%{background-position:200% center}
+    }
+  </style>
+</head>
+<style>
+  nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,rgba(6,14,3,0.88),transparent);backdrop-filter:blur(4px);border-bottom:0.5px solid rgba(97,153,34,0.15);}
+  .nav-logo{display:flex;align-items:center;gap:10px;font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:600;letter-spacing:1px;color:#fac775;text-decoration:none;}
+  .nav-logo-icon{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,rgba(97,153,34,0.3),rgba(186,117,23,0.3));border:0.5px solid rgba(97,153,34,0.5);display:flex;align-items:center;justify-content:center;}
+  .nav-links{display:flex;align-items:center;gap:6px;list-style:none;}
+  .nav-links a{padding:7px 16px;border-radius:8px;font-size:13px;font-weight:500;letter-spacing:0.4px;color:rgba(192,221,151,0.7);text-decoration:none;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;line-height:1;}
+  .nav-links a:hover{color:#fac775;background:rgba(97,153,34,0.1);}
+  .nav-links a.active{color:#fac775;background:rgba(97,153,34,0.12);border:0.5px solid rgba(97,153,34,0.3);}
+  .nav-links a.nav-home{background:rgba(97,153,34,0.1);border:0.5px solid rgba(97,153,34,0.25);}
+</style>
+<body>
+
+  <nav>
+    <a class="nav-logo" href="{{ url_for('index') }}">
+      <div class="nav-logo-icon"><i class="ti ti-flame" style="font-size:18px;color:#fac775;"></i></div>
+      FWI System
+    </a>
+    <ul class="nav-links">
+      <li><a href="{{ url_for('index') }}" class="nav-home"><i class="ti ti-home" style="font-size:14px;"></i> Home</a></li>
+      <li><a href="{{ url_for('predict_datapoint') }}" class="active"><i class="ti ti-chart-bar" style="font-size:14px;"></i> Predict</a></li>
+    </ul>
+  </nav>
+
+  <!-- Animated canvas (lava-lamp rings) -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- Floating colour orbs -->
+  <div class="orbs">
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+    <div class="orb orb4"></div>
+    <div class="orb orb5"></div>
+    <div class="orb orb6"></div>
+  </div>
+
+  <!-- Rising particles -->
+  <div class="particles" id="ptcl"></div>
+
+  <!-- ─────────── MAIN CARD ─────────── -->
+  <div class="page">
+    <div class="card card-br">
+      <div class="scanline"></div>
+
+      <div class="header">
+        <div class="icon-ring">
+          <i class="ti ti-flame" style="font-size:28px;color:#fac775;"></i>
+        </div>
+        <h1>FWI Prediction</h1>
+        <p class="subtitle">Fire Weather Index · Forest Fire Analysis</p>
+        <div class="header-divider"></div>
+      </div>
+
+      <div class="body">
+        <form action="{{ url_for('predict_datapoint') }}" method="post">
+
+          <div class="grid">
+            <div class="field" style="animation-delay:0.04s">
+              <label><i class="ti ti-temperature"></i> Temperature</label>
+              <input type="text" name="Temperature" placeholder="e.g. 32.4" required />
+            </div>
+            <div class="field" style="animation-delay:0.08s">
+              <label><i class="ti ti-droplet"></i> RH</label>
+              <input type="text" name="RH" placeholder="Relative Humidity" required />
+            </div>
+            <div class="field" style="animation-delay:0.12s">
+              <label><i class="ti ti-wind"></i> Ws</label>
+              <input type="text" name="Ws" placeholder="Wind Speed" required />
+            </div>
+            <div class="field" style="animation-delay:0.16s">
+              <label><i class="ti ti-cloud-rain"></i> Rain</label>
+              <input type="text" name="Rain" placeholder="Precipitation" required />
+            </div>
+            <div class="field" style="animation-delay:0.20s">
+              <label><i class="ti ti-leaf"></i> FFMC</label>
+              <input type="text" name="FFMC" placeholder="Fine Fuel Moisture" required />
+            </div>
+            <div class="field" style="animation-delay:0.24s">
+              <label><i class="ti ti-trees"></i> DMC</label>
+              <input type="text" name="DMC" placeholder="Duff Moisture Code" required />
+            </div>
+            <div class="field" style="animation-delay:0.28s">
+              <label><i class="ti ti-bolt"></i> ISI</label>
+              <input type="text" name="ISI" placeholder="Initial Spread Index" required />
+            </div>
+            <div class="field" style="animation-delay:0.32s">
+              <label><i class="ti ti-tag"></i> Classes</label>
+              <input type="text" name="Classes" placeholder="Fire Class" required />
+            </div>
+          </div>
+
+          <div class="field" style="animation-delay:0.36s">
+            <label><i class="ti ti-map-pin"></i> Region</label>
+            <input type="text" name="Region" placeholder="Geographic Region" required />
+          </div>
+
+          <div class="sep"></div>
+
+          <button type="submit" class="btn">
+            <i class="ti ti-flame"></i>
+            Predict FWI
+            <i class="ti ti-arrow-right"></i>
+          </button>
+
+        </form>
+
+        <div class="result">
+          <i class="ti ti-chart-bar" style="font-size:24px;color:#fac775;flex-shrink:0"></i>
+          <div>
+            <div class="result-lbl">Prediction Result</div>
+            <div class="result-val">{{results}}</div>
+          </div>
+          <span class="badge"><i class="ti ti-check" style="font-size:10px"></i> ML Model</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ── Rising particles ── */
+    const ptcl = document.getElementById('ptcl');
+    const cols = ['#639922','#ba7517','#3b6d11','#ef9f27','#97c459','#993c1d','#fac775','#c0dd97'];
+    for(let i = 0; i < 50; i++){
+      const el = document.createElement('div');
+      el.className = 'p';
+      const sz  = 2 + Math.random() * 6;
+      const dx  = (Math.random() - 0.5) * 140;
+      const dur = 6 + Math.random() * 10;
+      const del = Math.random() * 12;
+      const col = cols[Math.floor(Math.random() * cols.length)];
+      el.style.cssText = `
+        left:${Math.random()*100}%;
+        width:${sz}px; height:${sz}px;
+        background:${col};
+        --dx:${dx}px;
+        animation-duration:${dur}s;
+        animation-delay:-${del}s;
+        filter:blur(${Math.random()<0.4?1.5:0}px);
+        opacity:${0.45 + Math.random()*0.55};
+        box-shadow: 0 0 ${sz*2}px ${col}88;
+      `;
+      ptcl.appendChild(el);
+    }
+
+    /* ── Canvas: slow drifting rings ── */
+    const canvas = document.getElementById('bg-canvas');
+    const ctx    = canvas.getContext('2d');
+
+    function resize(){
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const rings = Array.from({length: 9}, (_, i) => ({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      r: 80 + Math.random() * 160,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      hue: i % 2 === 0 ? 'green' : 'amber',
+      alpha: 0.04 + Math.random() * 0.06,
+      thickness: 1 + Math.random() * 2
+    }));
+
+    const greenCols  = ['#639922','#3b6d11','#97c459'];
+    const amberCols  = ['#ba7517','#ef9f27','#993c1d'];
+
+    function draw(){
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      rings.forEach(ring => {
+        ring.x += ring.vx;
+        ring.y += ring.vy;
+        if(ring.x < -ring.r) ring.x = canvas.width + ring.r;
+        if(ring.x > canvas.width + ring.r) ring.x = -ring.r;
+        if(ring.y < -ring.r) ring.y = canvas.height + ring.r;
+        if(ring.y > canvas.height + ring.r) ring.y = -ring.r;
+
+        const palette = ring.hue === 'green' ? greenCols : amberCols;
+        const col = palette[Math.floor(Math.random() * palette.length)];
+        ctx.beginPath();
+        ctx.arc(ring.x, ring.y, ring.r, 0, Math.PI * 2);
+        ctx.strokeStyle = col;
+        ctx.globalAlpha = ring.alpha;
+        ctx.lineWidth   = ring.thickness;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      });
+      requestAnimationFrame(draw);
+    }
+    draw();
+  </script>
+</body>
+</html>
